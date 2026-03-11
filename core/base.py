@@ -2,7 +2,7 @@
 # 作者（Author）：James Lyons，2012
 from __future__ import division
 import numpy
-from Computer import sigproc
+from . import sigproc
 from scipy.fftpack import dct
 
 def calculate_nfft(samplerate, winlen):
@@ -21,7 +21,7 @@ def calculate_nfft(samplerate, winlen):
 
 def mfcc(signal,samplerate=16000,winlen=0.025,winstep=0.01,numcep=13,
          nfilt=26,nfft=None,lowfreq=0,highfreq=None,preemph=0.97,ceplifter=22,appendEnergy=True,
-         winfunc=lambda x:numpy.ones((x,))):
+         winfunc=numpy.hamming):
     """从音频信号计算 MFCC（Mel-Frequency Cepstral Coefficients，梅尔频率倒谱系数）特征。
 
     :param signal: 用于计算特征的音频信号（audio signal），应为 N*1 的数组。
@@ -36,7 +36,7 @@ def mfcc(signal,samplerate=16000,winlen=0.025,winstep=0.01,numcep=13,
     :param preemph: 预加重（pre-emphasis）滤波器系数。0 表示不做滤波。默认 0.97。
     :param ceplifter: 对最终 cepstral coefficients（倒谱系数）做 lifter（倒谱提升/升倒谱）。0 表示不使用。默认 22。
     :param appendEnergy: 若为 True，则用每帧总能量（frame energy）的对数替换第 0 维倒谱系数。
-    :param winfunc: 对每帧应用的窗函数（analysis window）。默认不加窗（全 1）。可使用 numpy 的窗函数，例如 winfunc=numpy.hamming。
+    :param winfunc: 对每帧应用的窗函数（analysis window）。默认使用 Hamming 窗。
     :returns: numpy 数组，大小为（NUMFRAMES * numcep），每一行是一帧的特征向量（feature vector）。
     """
     nfft = nfft or calculate_nfft(samplerate, winlen)
@@ -45,11 +45,12 @@ def mfcc(signal,samplerate=16000,winlen=0.025,winstep=0.01,numcep=13,
     feat = dct(feat, type=2, axis=1, norm='ortho')[:,:numcep]
     feat = lifter(feat,ceplifter)
     if appendEnergy: feat[:,0] = numpy.log(energy) # replace first cepstral coefficient with log of frame energy
+    feat = sigproc.cmvn(feat)
     return feat
 
 def fbank(signal,samplerate=16000,winlen=0.025,winstep=0.01,
           nfilt=26,nfft=512,lowfreq=0,highfreq=None,preemph=0.97,
-          winfunc=lambda x:numpy.ones((x,))):
+          winfunc=numpy.hamming):
     """从音频信号计算 Mel-filterbank（梅尔滤波器组）能量特征。
 
     :param signal: 用于计算特征的音频信号（audio signal），应为 N*1 的数组。
@@ -61,15 +62,20 @@ def fbank(signal,samplerate=16000,winlen=0.025,winstep=0.01,
     :param lowfreq: mel filters（梅尔滤波器）最低频带边界，单位 Hz（赫兹），默认 0。
     :param highfreq: mel filters（梅尔滤波器）最高频带边界，单位 Hz（赫兹），默认 samplerate/2。
     :param preemph: 预加重（pre-emphasis）滤波器系数。0 表示不做滤波。默认 0.97。
-    :param winfunc: 对每帧应用的窗函数（analysis window）。默认不加窗（全 1）。可使用 numpy 的窗函数，例如 winfunc=numpy.hamming。
+    :param winfunc: 对每帧应用的窗函数（analysis window）。默认使用 Hamming 窗。
     :returns: 返回两个值：第一个是 numpy 数组，大小为（NUMFRAMES * nfilt），每行是一帧的特征向量；第二个是每帧能量（energy），为总能量且不加窗（unwindowed）。
     """
     highfreq= highfreq or samplerate/2
+    signal = sigproc.remove_dc_offset(signal)
+    signal = sigproc.add_dither(signal)
     signal = sigproc.preemphasis(signal,preemph)
     frames = sigproc.framesig(signal, winlen*samplerate, winstep*samplerate, winfunc)
     pspec = sigproc.powspec(frames,nfft)
     energy = numpy.sum(pspec,1) # 存储每帧的总能量（total energy）
     energy = numpy.where(energy == 0,numpy.finfo(float).eps,energy) # 若能量为 0，取 log 时会出现问题
+    vad_mask = sigproc.simple_energy_vad_mask(energy)
+    pspec = pspec[vad_mask]
+    energy = energy[vad_mask]
 
     fb = get_filterbanks(nfilt,nfft,samplerate,lowfreq,highfreq)
     feat = numpy.dot(pspec,fb.T) # 计算 filterbank（滤波器组）能量
@@ -79,7 +85,7 @@ def fbank(signal,samplerate=16000,winlen=0.025,winstep=0.01,
 
 def logfbank(signal,samplerate=16000,winlen=0.025,winstep=0.01,
              nfilt=26,nfft=512,lowfreq=0,highfreq=None,preemph=0.97,
-             winfunc=lambda x:numpy.ones((x,))):
+             winfunc=numpy.hamming):
     """从音频信号计算 log Mel-filterbank（对数梅尔滤波器组）能量特征。
 
     :param signal: 用于计算特征的音频信号（audio signal），应为 N*1 的数组。
@@ -91,15 +97,16 @@ def logfbank(signal,samplerate=16000,winlen=0.025,winstep=0.01,
     :param lowfreq: mel filters（梅尔滤波器）最低频带边界，单位 Hz（赫兹），默认 0。
     :param highfreq: mel filters（梅尔滤波器）最高频带边界，单位 Hz（赫兹），默认 samplerate/2。
     :param preemph: 预加重（pre-emphasis）滤波器系数。0 表示不做滤波。默认 0.97。
-    :param winfunc: 对每帧应用的窗函数（analysis window）。默认不加窗（全 1）。可使用 numpy 的窗函数，例如 winfunc=numpy.hamming。
+    :param winfunc: 对每帧应用的窗函数（analysis window）。默认使用 Hamming 窗。
     :returns: numpy 数组，大小为（NUMFRAMES * nfilt），每行是一帧的特征向量。
     """
     feat,energy = fbank(signal,samplerate,winlen,winstep,nfilt,nfft,lowfreq,highfreq,preemph,winfunc)
-    return numpy.log(feat)
+    log_feat = numpy.log(feat)
+    return sigproc.cmvn(log_feat)
 
 def ssc(signal,samplerate=16000,winlen=0.025,winstep=0.01,
         nfilt=26,nfft=512,lowfreq=0,highfreq=None,preemph=0.97,
-        winfunc=lambda x:numpy.ones((x,))):
+        winfunc=numpy.hamming):
     """从音频信号计算 SSC（Spectral Subband Centroid，谱子带质心）特征。
 
     :param signal: 用于计算特征的音频信号（audio signal），应为 N*1 的数组。
@@ -111,20 +118,27 @@ def ssc(signal,samplerate=16000,winlen=0.025,winstep=0.01,
     :param lowfreq: mel filters（梅尔滤波器）最低频带边界，单位 Hz（赫兹），默认 0。
     :param highfreq: mel filters（梅尔滤波器）最高频带边界，单位 Hz（赫兹），默认 samplerate/2。
     :param preemph: 预加重（pre-emphasis）滤波器系数。0 表示不做滤波。默认 0.97。
-    :param winfunc: 对每帧应用的窗函数（analysis window）。默认不加窗（全 1）。可使用 numpy 的窗函数，例如 winfunc=numpy.hamming。
+    :param winfunc: 对每帧应用的窗函数（analysis window）。默认使用 Hamming 窗。
     :returns: numpy 数组，大小为（NUMFRAMES * nfilt），每行是一帧的特征向量。
     """
     highfreq= highfreq or samplerate/2
+    signal = sigproc.remove_dc_offset(signal)
+    signal = sigproc.add_dither(signal)
     signal = sigproc.preemphasis(signal,preemph)
     frames = sigproc.framesig(signal, winlen*samplerate, winstep*samplerate, winfunc)
     pspec = sigproc.powspec(frames,nfft)
     pspec = numpy.where(pspec == 0,numpy.finfo(float).eps,pspec) # 若全为 0，会导致后续计算出现问题
+    energy = numpy.sum(pspec,1)
+    vad_mask = sigproc.simple_energy_vad_mask(energy)
+    pspec = pspec[vad_mask]
 
     fb = get_filterbanks(nfilt,nfft,samplerate,lowfreq,highfreq)
     feat = numpy.dot(pspec,fb.T) # 计算 filterbank（滤波器组）能量
+    feat = numpy.where(feat == 0,numpy.finfo(float).eps,feat)
     R = numpy.tile(numpy.linspace(1,samplerate/2,numpy.size(pspec,1)),(numpy.size(pspec,0),1))
 
-    return numpy.dot(pspec*R,fb.T) / feat
+    ssc_feat = numpy.dot(pspec*R,fb.T) / feat
+    return sigproc.cmvn(ssc_feat)
 
 def hz2mel(hz):
     """将 Hertz（赫兹）频率转换为 Mels（梅尔）。

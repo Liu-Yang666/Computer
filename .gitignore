@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 mfcc_step_plots/
 window_fft_compare_plots/
+**/mfcc_step_plots/
+**/window_fft_compare_plots/

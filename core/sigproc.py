@@ -11,13 +11,13 @@ def round_half_up(number):
     return int(decimal.Decimal(number).quantize(decimal.Decimal('1'), rounding=decimal.ROUND_HALF_UP))
 
 
-def framesig(sig, frame_len, frame_step, winfunc=lambda x: numpy.ones((x,))):
+def framesig(sig, frame_len, frame_step, winfunc=numpy.hamming):
     """将信号切分为重叠帧（overlapping frames）。
 
     :param sig: 需要分帧的音频信号（audio signal）。
     :param frame_len: 每帧长度（frame length），单位为采样点（samples）。
     :param frame_step: 帧移（frame step），即下一帧相对上一帧起点偏移的采样点数。
-    :param winfunc: 对每帧应用的窗函数（analysis window）。默认不加窗（全 1）。
+    :param winfunc: 对每帧应用的窗函数（analysis window）。默认使用 Hamming 窗。
     :returns: 帧数组（frames），大小为 NUMFRAMES * frame_len。
     """
     sig = numpy.asarray(sig)
@@ -57,14 +57,14 @@ def framesig(sig, frame_len, frame_step, winfunc=lambda x: numpy.ones((x,))):
     return windowed_frames
 
 
-def deframesig(frames, siglen, frame_len, frame_step, winfunc=lambda x: numpy.ones((x,))):
+def deframesig(frames, siglen, frame_len, frame_step, winfunc=numpy.hamming):
     """通过 overlap-add（重叠相加）过程撤销 framesig 的分帧效果（近似还原原始信号）。
 
     :param frames: 帧数组（frames）。
     :param siglen: 目标信号长度（desired signal length）；未知可传 0。输出将截断到 siglen 个采样点。
     :param frame_len: 每帧长度（frame length），单位为采样点（samples）。
     :param frame_step: 帧移（frame step），即下一帧相对上一帧起点偏移的采样点数。
-    :param winfunc: 对每帧应用的窗函数（analysis window）。默认不加窗（全 1）。
+    :param winfunc: 对每帧应用的窗函数（analysis window）。默认使用 Hamming 窗。
     :returns: 一维信号（1-D signal）。
     """
     frame_len = round_half_up(frame_len)
@@ -162,6 +162,72 @@ def logpowspec(frames, NFFT, norm=1):
         return lps - numpy.max(lps)
     else:
         return lps
+
+
+def remove_dc_offset(signal):
+    """执行直流分量去除（DC offset removal）。
+
+    :param signal: 输入一维波形。
+    :returns: 去除直流分量后的波形。
+    """
+    signal = numpy.asarray(signal)
+    if signal.size == 0:
+        return signal
+    return signal - numpy.mean(signal)
+
+
+def add_dither(signal, dither_scale=1e-5, seed=0):
+    """执行抖动（dither），为波形加入极小幅随机噪声。
+
+    :param signal: 输入一维波形。
+    :param dither_scale: 抖动强度，默认 1e-5。
+    :param seed: 随机种子，默认 0，保证可复现。
+    :returns: 加入抖动后的波形。
+    """
+    signal = numpy.asarray(signal)
+    if signal.size == 0:
+        return signal
+    rng = numpy.random.RandomState(seed)
+    noise = rng.normal(loc=0.0, scale=dither_scale, size=signal.shape)
+    return signal + noise
+
+
+def simple_energy_vad_mask(energy, threshold_db=40.0, min_energy=1e-8):
+    """基于帧能量的简单 VAD，返回保留语音帧的布尔掩码。
+
+    规则：保留能量高于“最大帧能量 - threshold_db”的帧。
+
+    :param energy: 每帧能量数组。
+    :param threshold_db: 相对阈值（dB）。
+    :param min_energy: 数值下限，避免 log 计算异常。
+    :returns: 布尔掩码，True 表示语音帧。
+    """
+    energy = numpy.asarray(energy, dtype=numpy.float64)
+    if energy.size == 0:
+        return numpy.zeros((0,), dtype=bool)
+    safe_energy = numpy.maximum(energy, min_energy)
+    log_energy_db = 10.0 * numpy.log10(safe_energy)
+    threshold = numpy.max(log_energy_db) - threshold_db
+    mask = log_energy_db >= threshold
+    if not numpy.any(mask):
+        mask[numpy.argmax(log_energy_db)] = True
+    return mask
+
+
+def cmvn(feat, eps=1e-8):
+    """执行逐句 CMVN（倒谱均值方差归一化）。
+
+    :param feat: 特征矩阵，形状为 (num_frames, feat_dim)。
+    :param eps: 方差下限，避免除零。
+    :returns: CMVN 后的特征矩阵。
+    """
+    feat = numpy.asarray(feat, dtype=numpy.float64)
+    if feat.size == 0:
+        return feat
+    mean = numpy.mean(feat, axis=0, keepdims=True)
+    std = numpy.std(feat, axis=0, keepdims=True)
+    std = numpy.maximum(std, eps)
+    return (feat - mean) / std
 
 
 def preemphasis(signal, coeff=0.95):

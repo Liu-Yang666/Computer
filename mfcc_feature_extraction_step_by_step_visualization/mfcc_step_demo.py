@@ -1,11 +1,16 @@
 import argparse
 import os
+import sys
 
 import matplotlib
 import numpy as np
 
-import sigproc
-from read_english_wav_scipy import read_english_wav_mono
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from core import sigproc
+from core.audio_io import read_english_wav_mono
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -80,7 +85,7 @@ def main(wav_path=None):
     7) 梅尔滤波器组（Mel Filter Bank）与梅尔能量
     """
     base_dir = os.path.dirname(__file__)
-    wav_path = wav_path or os.path.join(base_dir, "english.wav")
+    wav_path = wav_path or os.path.join(PROJECT_ROOT, "data", "english.wav")
     output_dir = os.path.join(base_dir, "mfcc_step_plots")
     os.makedirs(output_dir, exist_ok=True)
 

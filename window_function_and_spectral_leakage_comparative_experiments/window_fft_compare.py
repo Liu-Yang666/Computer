@@ -1,10 +1,15 @@
 import os
+import sys
 
 import matplotlib
 import numpy as np
 
-import sigproc
-from read_english_wav_scipy import read_english_wav_mono
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from core import sigproc
+from core.audio_io import read_english_wav_mono
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -52,7 +57,7 @@ def apply_hamming_with_gain_compensation(frame):
 def main():
     # 输出目录：保存合成信号4图对比和语音帧2图对比
     base_dir = os.path.dirname(__file__)
-    wav_path = os.path.join(base_dir, "english.wav")
+    wav_path = os.path.join(PROJECT_ROOT, "data", "english.wav")
     output_dir = os.path.join(base_dir, "window_fft_compare_plots")
     os.makedirs(output_dir, exist_ok=True)
 

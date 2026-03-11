@@ -3,14 +3,14 @@ import os
 import numpy as np
 import scipy.io.wavfile as wav
 
-import sigproc
+from . import sigproc
 
 
 def get_default_wav_path():
     """
     返回当前项目默认音频 english.wav 的绝对路径。
     """
-    return os.path.join(os.path.dirname(__file__), "english.wav")
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "english.wav"))
 
 
 def select_mono_channel(sig, channel=0):

@@ -93,7 +93,7 @@ def main(wav_path=None):
     winstep = 0.01
     preemph_coeff = 0.97
     nfilt = 26
-    lowfreq = 0
+    lowfreq = 20
 
     # 统一读取入口：读取 english.wav，并返回原始波形与单通道波形
     rate, sig, sig_mono = read_english_wav_mono(channel=0, dtype=np.float32, wav_path=wav_path)

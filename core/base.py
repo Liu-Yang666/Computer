@@ -20,7 +20,7 @@ def calculate_nfft(samplerate, winlen):
     return nfft
 
 def mfcc(signal,samplerate=16000,winlen=0.025,winstep=0.01,numcep=13,
-         nfilt=26,nfft=None,lowfreq=0,highfreq=None,preemph=0.97,ceplifter=22,appendEnergy=True,
+         nfilt=26,nfft=None,lowfreq=20,highfreq=None,preemph=0.97,ceplifter=22,appendEnergy=True,
          winfunc=numpy.hamming):
     """从音频信号计算 MFCC（Mel-Frequency Cepstral Coefficients，梅尔频率倒谱系数）特征。
 
@@ -31,7 +31,7 @@ def mfcc(signal,samplerate=16000,winlen=0.025,winstep=0.01,numcep=13,
     :param numcep: 返回的 cepstrum（倒谱）系数数量，默认 13。
     :param nfilt: filterbank（滤波器组）中滤波器数量，默认 26。
     :param nfft: FFT（快速傅里叶变换）点数。默认 None，使用 calculate_nfft 选择一个不会丢弃样本数据的最小点数。
-    :param lowfreq: mel filters（梅尔滤波器）最低频带边界，单位 Hz（赫兹），默认 0。
+    :param lowfreq: mel filters（梅尔滤波器）最低频带边界，单位 Hz（赫兹），默认 20。
     :param highfreq: mel filters（梅尔滤波器）最高频带边界，单位 Hz（赫兹），默认 samplerate/2。
     :param preemph: 预加重（pre-emphasis）滤波器系数。0 表示不做滤波。默认 0.97。
     :param ceplifter: 对最终 cepstral coefficients（倒谱系数）做 lifter（倒谱提升/升倒谱）。0 表示不使用。默认 22。
@@ -49,7 +49,7 @@ def mfcc(signal,samplerate=16000,winlen=0.025,winstep=0.01,numcep=13,
     return feat
 
 def fbank(signal,samplerate=16000,winlen=0.025,winstep=0.01,
-          nfilt=26,nfft=512,lowfreq=0,highfreq=None,preemph=0.97,
+          nfilt=26,nfft=512,lowfreq=20,highfreq=None,preemph=0.97,
           winfunc=numpy.hamming):
     """从音频信号计算 Mel-filterbank（梅尔滤波器组）能量特征。
 
@@ -59,7 +59,7 @@ def fbank(signal,samplerate=16000,winlen=0.025,winstep=0.01,
     :param winstep: 相邻窗口之间的步长（step），单位秒（s）。默认 0.01s（10ms）。
     :param nfilt: filterbank（滤波器组）中滤波器数量，默认 26。
     :param nfft: FFT（快速傅里叶变换）点数。默认 512。
-    :param lowfreq: mel filters（梅尔滤波器）最低频带边界，单位 Hz（赫兹），默认 0。
+    :param lowfreq: mel filters（梅尔滤波器）最低频带边界，单位 Hz（赫兹），默认 20。
     :param highfreq: mel filters（梅尔滤波器）最高频带边界，单位 Hz（赫兹），默认 samplerate/2。
     :param preemph: 预加重（pre-emphasis）滤波器系数。0 表示不做滤波。默认 0.97。
     :param winfunc: 对每帧应用的窗函数（analysis window）。默认使用 Hamming 窗。
@@ -84,7 +84,7 @@ def fbank(signal,samplerate=16000,winlen=0.025,winstep=0.01,
     return feat,energy
 
 def logfbank(signal,samplerate=16000,winlen=0.025,winstep=0.01,
-             nfilt=26,nfft=512,lowfreq=0,highfreq=None,preemph=0.97,
+             nfilt=26,nfft=512,lowfreq=20,highfreq=None,preemph=0.97,
              winfunc=numpy.hamming):
     """从音频信号计算 log Mel-filterbank（对数梅尔滤波器组）能量特征。
 
@@ -94,7 +94,7 @@ def logfbank(signal,samplerate=16000,winlen=0.025,winstep=0.01,
     :param winstep: 相邻窗口之间的步长（step），单位秒（s）。默认 0.01s（10ms）。
     :param nfilt: filterbank（滤波器组）中滤波器数量，默认 26。
     :param nfft: FFT（快速傅里叶变换）点数。默认 512。
-    :param lowfreq: mel filters（梅尔滤波器）最低频带边界，单位 Hz（赫兹），默认 0。
+    :param lowfreq: mel filters（梅尔滤波器）最低频带边界，单位 Hz（赫兹），默认 20。
     :param highfreq: mel filters（梅尔滤波器）最高频带边界，单位 Hz（赫兹），默认 samplerate/2。
     :param preemph: 预加重（pre-emphasis）滤波器系数。0 表示不做滤波。默认 0.97。
     :param winfunc: 对每帧应用的窗函数（analysis window）。默认使用 Hamming 窗。
@@ -105,7 +105,7 @@ def logfbank(signal,samplerate=16000,winlen=0.025,winstep=0.01,
     return sigproc.cmvn(log_feat)
 
 def ssc(signal,samplerate=16000,winlen=0.025,winstep=0.01,
-        nfilt=26,nfft=512,lowfreq=0,highfreq=None,preemph=0.97,
+        nfilt=26,nfft=512,lowfreq=20,highfreq=None,preemph=0.97,
         winfunc=numpy.hamming):
     """从音频信号计算 SSC（Spectral Subband Centroid，谱子带质心）特征。
 
@@ -115,7 +115,7 @@ def ssc(signal,samplerate=16000,winlen=0.025,winstep=0.01,
     :param winstep: 相邻窗口之间的步长（step），单位秒（s）。默认 0.01s（10ms）。
     :param nfilt: filterbank（滤波器组）中滤波器数量，默认 26。
     :param nfft: FFT（快速傅里叶变换）点数。默认 512。
-    :param lowfreq: mel filters（梅尔滤波器）最低频带边界，单位 Hz（赫兹），默认 0。
+    :param lowfreq: mel filters（梅尔滤波器）最低频带边界，单位 Hz（赫兹），默认 20。
     :param highfreq: mel filters（梅尔滤波器）最高频带边界，单位 Hz（赫兹），默认 samplerate/2。
     :param preemph: 预加重（pre-emphasis）滤波器系数。0 表示不做滤波。默认 0.97。
     :param winfunc: 对每帧应用的窗函数（analysis window）。默认使用 Hamming 窗。
@@ -156,7 +156,7 @@ def mel2hz(mel):
     """
     return 700*(10**(mel/2595.0)-1)
 
-def get_filterbanks(nfilt=20,nfft=512,samplerate=16000,lowfreq=0,highfreq=None):
+def get_filterbanks(nfilt=20,nfft=512,samplerate=16000,lowfreq=20,highfreq=None):
     """计算 Mel-filterbank（梅尔滤波器组）。
 
     每一行存放一个滤波器（filter），列对应 FFT（快速傅里叶变换）的 bin（频点）。返回矩阵大小为 nfilt * (nfft/2 + 1)。
@@ -164,7 +164,7 @@ def get_filterbanks(nfilt=20,nfft=512,samplerate=16000,lowfreq=0,highfreq=None):
     :param nfilt: filterbank（滤波器组）中滤波器数量，默认 20。
     :param nfft: FFT（快速傅里叶变换）点数，默认 512。
     :param samplerate: 当前信号的采样率（sample rate，采样频率），单位 Hz（赫兹），会影响 mel 轴间隔（mel spacing）。
-    :param lowfreq: mel filters（梅尔滤波器）最低频带边界，默认 0 Hz。
+    :param lowfreq: mel filters（梅尔滤波器）最低频带边界，默认 20 Hz。
     :param highfreq: mel filters（梅尔滤波器）最高频带边界，默认 samplerate/2。
     :returns: numpy 数组，大小为 nfilt * (nfft/2 + 1)，每行对应一个滤波器（filter）。
     """
